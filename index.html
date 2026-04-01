@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Музыкальный бот</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,7 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: var(--tg-theme-bg-color, #f8f9fa);
             color: var(--tg-theme-text-color, #000);
-            padding: 16px;
+            padding: 20px;
             min-height: 100vh;
         }
         .container {
@@ -30,378 +29,169 @@
             margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-        .search-box {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .search-input {
-            flex: 1;
-            padding: 14px;
-            border: 1px solid var(--tg-theme-hint-color, #ddd);
-            border-radius: 12px;
-            font-size: 16px;
-            background: var(--tg-theme-bg-color, #fff);
-            color: var(--tg-theme-text-color, #000);
-        }
-        .search-btn {
-            background: var(--tg-theme-button-color, #2481cc);
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        .artist-card {
-            cursor: pointer;
-            transition: transform 0.2s;
-            border: 1px solid var(--tg-theme-hint-color, #e9ecef);
-        }
-        .artist-card:hover {
-            transform: translateY(-2px);
-        }
         .artist-name {
-            font-size: 20px;
+            font-size: 28px;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
+        }
+        .info-label {
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        .info-value {
+            font-weight: 500;
         }
         .album-item {
-            padding: 12px;
+            padding: 12px 0;
             border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
         }
         .album-title {
             font-weight: 600;
+            font-size: 16px;
         }
         .album-year {
             font-size: 12px;
             color: var(--tg-theme-hint-color, #6c757d);
+            margin-top: 4px;
         }
-        .back-btn {
-            background: none;
+        button {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
             border: none;
-            color: var(--tg-theme-button-color, #2481cc);
-            font-size: 16px;
-            padding: 8px 0;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--tg-theme-hint-color, #6c757d);
-        }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            margin: 0 auto 12px;
-            border: 4px solid var(--tg-theme-secondary-bg-color, #f3f3f3);
-            border-top: 4px solid var(--tg-theme-button-color, #2481cc);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .hidden {
-            display: none;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 12px;
-        }
-        .info-item {
-            background: var(--tg-theme-bg-color, #f0f2f5);
-            padding: 12px;
+            padding: 14px;
             border-radius: 12px;
-        }
-        .info-label {
-            font-size: 12px;
-            color: var(--tg-theme-hint-color, #6c757d);
-        }
-        .info-value {
             font-size: 16px;
             font-weight: 500;
-            margin-top: 4px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 12px;
         }
         .bio-text {
             line-height: 1.5;
             margin-top: 12px;
         }
-        .error {
-            color: #dc3545;
-            text-align: center;
-            padding: 20px;
-        }
-        button {
-            background: var(--tg-theme-button-color, #2481cc);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 12px;
-        }
-        .listener-count {
-            font-size: 14px;
-            color: var(--tg-theme-hint-color, #6c757d);
+        .genres {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
             margin-top: 8px;
+        }
+        .genre-tag {
+            background: var(--tg-theme-bg-color, #e9ecef);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 16px;
+        }
+        .back-link a {
+            color: var(--tg-theme-button-color, #2481cc);
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loadingPyodide" class="card loading">
-            <div class="spinner"></div>
-            <p>🔄 Загрузка Python...</p>
-        </div>
-        
-        <div id="app" class="hidden">
-            <div id="searchView">
-                <div class="card" id="welcomeCard"></div>
-                <div class="card">
-                    <h2>🎵 Поиск исполнителя</h2>
-                    <div class="search-box">
-                        <input type="text" id="artistInput" class="search-input" placeholder="Big Baby Tape, Imagine Dragons...">
-                        <button onclick="searchArtist()" class="search-btn">🔍 Найти</button>
-                    </div>
-                </div>
-                <div id="searchResults"></div>
-            </div>
-            
-            <div id="artistView" class="hidden">
-                <button onclick="backToSearch()" class="back-btn">← Назад</button>
-                <div id="artistContent"></div>
+        <div class="card" id="content">
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🎵</div>
+                <h2>Музыкальный бот</h2>
+                <p style="margin-top: 12px; color: var(--tg-theme-hint-color, #6c757d);">
+                    Напишите трек в боте, затем нажмите<br>
+                    <strong>"Открыть в Mini App"</strong>
+                </p>
+                <button onclick="openBot()">🔍 Найти исполнителя</button>
             </div>
         </div>
     </div>
 
     <script>
-        let pyodide = null;
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         
-        // Прокси для обхода CORS
-        const PROXY_URL = 'https://api.allorigins.win/raw?url=';
+        // Получаем данные из URL (если есть)
+        const urlParams = new URLSearchParams(window.location.search);
+        const dataParam = urlParams.get('data');
         
-        async function initPyodide() {
-            const loadingDiv = document.getElementById('loadingPyodide');
-            const appDiv = document.getElementById('app');
-            
+        if (dataParam) {
             try {
-                pyodide = await loadPyodide({
-                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
-                });
-                
-                // Python код с использованием прокси
-                const pythonCode = `
-import json
-import urllib.request
-from urllib.parse import quote
-
-PROXY = '${PROXY_URL}'
-
-class YandexMusic:
-    def _fetch(self, url):
-        try:
-            proxy_url = PROXY + quote(url, safe='')
-            req = urllib.request.Request(proxy_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=15) as response:
-                return json.loads(response.read().decode())
-        except Exception as e:
-            return None
-    
-    def search_artist(self, query):
-        try:
-            url = f"https://music.yandex.ru/api/v2.1/handlers/music/search?text={quote(query)}&type=artist&page=0"
-            data = self._fetch(url)
-            
-            if data and 'artists' in data and data['artists'] and 'items' in data['artists']:
-                artists = []
-                for a in data['artists']['items'][:10]:
-                    artists.append({
-                        'id': a.get('id'),
-                        'name': a.get('name'),
-                        'listeners': a.get('listeners', 0),
-                        'albums_count': a.get('albums', {}).get('count', 0)
-                    })
-                return {'success': True, 'artists': artists}
-            return {'success': False, 'error': 'Не найдено'}
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-    
-    def get_artist_info(self, artist_id):
-        try:
-            url = f"https://music.yandex.ru/api/v2.1/artists/{artist_id}"
-            data = self._fetch(url)
-            
-            if not data:
-                return {'success': False, 'error': 'Нет данных'}
-            
-            artist = data.get('artist', {})
-            
-            albums_url = f"https://music.yandex.ru/api/v2.1/artists/{artist_id}/albums?page=0&pageSize=20"
-            albums_data = self._fetch(albums_url)
-            
-            albums = []
-            if albums_data and 'albums' in albums_data:
-                for a in albums_data['albums'][:15]:
-                    albums.append({
-                        'title': a.get('title', 'Без названия'),
-                        'year': a.get('year'),
-                        'track_count': a.get('trackCount', 0)
-                    })
-            
-            return {
-                'success': True,
-                'name': artist.get('name', 'Неизвестно'),
-                'genres': artist.get('genres', [])[:5],
-                'listeners': artist.get('listeners', 0),
-                'albums': albums,
-                'years_active': artist.get('years', ''),
-                'bio_short': artist.get('description', {}).get('short', 'Нет биографии')
+                const artist = JSON.parse(decodeURIComponent(dataParam));
+                showArtistData(artist);
+            } catch(e) {
+                console.error('Ошибка:', e);
             }
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
-
-music = YandexMusic()
+        } else {
+            // Показываем приветствие с данными пользователя
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                document.getElementById('content').innerHTML = `
+                    <div style="text-align: center;">
+                        <h2>👋 Привет, ${user.first_name}!</h2>
+                        <p style="margin-top: 12px;">Найди исполнителя в боте,<br>чтобы увидеть альбомы здесь</p>
+                        <button onclick="openBot()">🔍 Найти исполнителя</button>
+                    </div>
                 `;
-                
-                pyodide.runPython(pythonCode);
-                
-                loadingDiv.classList.add('hidden');
-                appDiv.classList.remove('hidden');
-                
-                const user = tg.initDataUnsafe?.user;
-                const welcomeCard = document.getElementById('welcomeCard');
-                welcomeCard.innerHTML = `
-                    <h3>❗ Привет, ${user?.first_name || 'гость'}!</h3>
-                    <p>Введи имя исполнителя — покажу альбомы и биографию</p>
-                    <p style="font-size: 12px; margin-top: 8px;">🆔 Ваш ID: ${user?.id || '?'}</p>
-                `;
-                
-            } catch (err) {
-                console.error(err);
-                loadingDiv.innerHTML = '<p class="error">❌ Ошибка загрузки Python</p>';
             }
         }
         
-        async function searchArtist() {
-            const query = document.getElementById('artistInput').value.trim();
-            if (!query) {
-                tg.showAlert('Введите имя исполнителя');
-                return;
-            }
+        function showArtistData(artist) {
+            const genresHtml = artist.genres && artist.genres.length > 0 
+                ? `<div class="genres">${artist.genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`
+                : '<span>—</span>';
             
-            const resultsDiv = document.getElementById('searchResults');
-            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>🔍 Ищем...</div>';
-            
-            try {
-                const music = pyodide.globals.get('music');
-                const result = music.search_artist(query);
-                const data = result.toJs();
-                
-                if (data.success && data.artists && data.artists.length > 0) {
-                    resultsDiv.innerHTML = data.artists.map(artist => `
-                        <div class="card artist-card" onclick="getArtistInfo(${artist.id})">
-                            <div class="artist-name">🎤 ${artist.name}</div>
-                            <div class="artist-info">
-                                <span>📀 Альбомов: ${artist.albums_count}</span>
-                                <span>👥 Слушателей: ${formatNumber(artist.listeners)}</span>
-                            </div>
+            let albumsHtml = '';
+            if (artist.albums && artist.albums.length > 0) {
+                albumsHtml = '<div class="card"><h3>📀 Альбомы</h3>';
+                artist.albums.forEach(album => {
+                    albumsHtml += `
+                        <div class="album-item">
+                            <div class="album-title">${album.title}</div>
+                            <div class="album-year">${album.year || 'Год неизвестен'} • ${album.track_count || '?'} треков</div>
                         </div>
-                    `).join('');
-                } else {
-                    resultsDiv.innerHTML = '<div class="card error">❌ Исполнитель не найден</div>';
-                }
-            } catch (err) {
-                console.error(err);
-                resultsDiv.innerHTML = '<div class="card error">⚠️ Ошибка поиска</div>';
-            }
-        }
-        
-        async function getArtistInfo(artistId) {
-            const artistView = document.getElementById('artistView');
-            const searchView = document.getElementById('searchView');
-            const artistContent = document.getElementById('artistContent');
-            
-            artistContent.innerHTML = '<div class="loading"><div class="spinner"></div>📖 Загружаем...</div>';
-            searchView.classList.add('hidden');
-            artistView.classList.remove('hidden');
-            
-            try {
-                const music = pyodide.globals.get('music');
-                const result = music.get_artist_info(artistId);
-                const data = result.toJs();
-                
-                if (data.success) {
-                    let albumsHtml = '';
-                    if (data.albums && data.albums.length > 0) {
-                        albumsHtml = '<div class="card"><h3>📀 Альбомы</h3>';
-                        data.albums.forEach(album => {
-                            albumsHtml += `
-                                <div class="album-item">
-                                    <div class="album-title">${album.title}</div>
-                                    <div class="album-year">${album.year || 'Год ?'} • ${album.track_count} треков</div>
-                                </div>
-                            `;
-                        });
-                        albumsHtml += '</div>';
-                    }
-                    
-                    artistContent.innerHTML = `
-                        <div class="card">
-                            <div class="artist-name">🎤 ${data.name}</div>
-                            <div class="listener-count">👥 ${formatNumber(data.listeners)} слушателей</div>
-                        </div>
-                        <div class="card">
-                            <h3>📊 Информация</h3>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">🎵 Жанры</div>
-                                    <div class="info-value">${data.genres.join(', ') || '—'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">🎭 Годы</div>
-                                    <div class="info-value">${data.years_active || '—'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        ${albumsHtml}
-                        <div class="card">
-                            <h3>📖 Биография</h3>
-                            <div class="bio-text">${data.bio_short || 'Нет данных'}</div>
-                        </div>
-                        <button onclick="tg.openLink('https://music.yandex.ru/artist/${artistId}')">🎵 Открыть в Яндекс.Музыке</button>
                     `;
-                } else {
-                    artistContent.innerHTML = `<div class="card error">❌ ${data.error || 'Ошибка'}</div>`;
-                }
-            } catch (err) {
-                console.error(err);
-                artistContent.innerHTML = '<div class="card error">⚠️ Ошибка загрузки</div>';
+                });
+                albumsHtml += '</div>';
             }
+            
+            document.getElementById('content').innerHTML = `
+                <div class="card">
+                    <div class="artist-name">🎤 ${artist.name}</div>
+                    <div class="info-row">
+                        <span class="info-label">👥 Слушателей</span>
+                        <span class="info-value">${artist.listeners || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🎵 Жанры</span>
+                        <div class="info-value">${genresHtml}</div>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">💿 Альбомов</span>
+                        <span class="info-value">${artist.albums_count || artist.albums?.length || '—'}</span>
+                    </div>
+                </div>
+                ${albumsHtml}
+                <div class="card">
+                    <h3>📖 Биография</h3>
+                    <div class="bio-text">${artist.bio_short || 'Нет биографии'}</div>
+                </div>
+                <button onclick="tg.openLink('${artist.yandex_link || 'https://music.yandex.ru'}')">🎵 Открыть в Яндекс.Музыке</button>
+                <div class="back-link">
+                    <a href="#" onclick="openBot()">← Назад к поиску</a>
+                </div>
+            `;
         }
         
-        function backToSearch() {
-            document.getElementById('searchView').classList.remove('hidden');
-            document.getElementById('artistView').classList.add('hidden');
+        function openBot() {
+            tg.openTelegramLink('https://t.me/lnmizic_bot');
         }
-        
-        function formatNumber(num) {
-            if (!num || num === 0) return '?';
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
-            return num;
-        }
-        
-        initPyodide();
     </script>
 </body>
 </html>
