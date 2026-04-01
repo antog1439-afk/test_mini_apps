@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Музыкальный бот - Python Mini App</title>
+    <title>Музыкальный бот</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
     <style>
@@ -108,27 +108,49 @@
         .hidden {
             display: none;
         }
-        .tab-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 12px;
         }
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 10px;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        .info-item {
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            padding: 12px;
             border-radius: 12px;
-            cursor: pointer;
-            font-weight: 500;
         }
-        .tab.active {
-            background: var(--tg-theme-button-color, #2481cc);
-            color: white;
+        .info-label {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: 500;
+            margin-top: 4px;
         }
         .bio-text {
             line-height: 1.5;
             margin-top: 12px;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .listener-count {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #6c757d);
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -137,23 +159,23 @@
         <div id="loadingPyodide" class="card loading">
             <div class="spinner"></div>
             <p>🔄 Загрузка Python...</p>
-            <p style="font-size: 12px;">Пожалуйста, подождите</p>
         </div>
         
         <div id="app" class="hidden">
             <div id="searchView">
+                <div class="card" id="welcomeCard"></div>
                 <div class="card">
                     <h2>🎵 Поиск исполнителя</h2>
                     <div class="search-box">
-                        <input type="text" id="artistInput" class="search-input" placeholder="Например: Big Baby Tape, Imagine Dragons...">
-                        <button onclick="searchArtistPython()" class="search-btn">🔍 Найти</button>
+                        <input type="text" id="artistInput" class="search-input" placeholder="Big Baby Tape, Imagine Dragons...">
+                        <button onclick="searchArtist()" class="search-btn">🔍 Найти</button>
                     </div>
                 </div>
                 <div id="searchResults"></div>
             </div>
             
             <div id="artistView" class="hidden">
-                <button onclick="backToSearch()" class="back-btn">← Назад к поиску</button>
+                <button onclick="backToSearch()" class="back-btn">← Назад</button>
                 <div id="artistContent"></div>
             </div>
         </div>
@@ -165,34 +187,40 @@
         tg.ready();
         tg.expand();
         
-        // Инициализация Pyodide
+        // Прокси для обхода CORS
+        const PROXY_URL = 'https://api.allorigins.win/raw?url=';
+        
         async function initPyodide() {
             const loadingDiv = document.getElementById('loadingPyodide');
             const appDiv = document.getElementById('app');
             
             try {
-                loadingDiv.innerHTML = '<div class="spinner"></div><p>⚙️ Запускаем Python...</p>';
-                
                 pyodide = await loadPyodide({
                     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
                 });
                 
-                // Загружаем необходимые библиотеки Python
-                await pyodide.loadPackage(['micropip']);
-                
-                // Пишем Python-код прямо здесь
+                // Python код с использованием прокси
                 const pythonCode = `
 import json
 import urllib.request
 from urllib.parse import quote
 
-class YandexMusicSearch:
+PROXY = '${PROXY_URL}'
+
+class YandexMusic:
+    def _fetch(self, url):
+        try:
+            proxy_url = PROXY + quote(url, safe='')
+            req = urllib.request.Request(proxy_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=15) as response:
+                return json.loads(response.read().decode())
+        except Exception as e:
+            return None
+    
     def search_artist(self, query):
         try:
             url = f"https://music.yandex.ru/api/v2.1/handlers/music/search?text={quote(query)}&type=artist&page=0"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode())
+            data = self._fetch(url)
             
             if data and 'artists' in data and data['artists'] and 'items' in data['artists']:
                 artists = []
@@ -211,38 +239,38 @@ class YandexMusicSearch:
     def get_artist_info(self, artist_id):
         try:
             url = f"https://music.yandex.ru/api/v2.1/artists/{artist_id}"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode())
+            data = self._fetch(url)
+            
+            if not data:
+                return {'success': False, 'error': 'Нет данных'}
             
             artist = data.get('artist', {})
-            albums_url = f"https://music.yandex.ru/api/v2.1/artists/{artist_id}/albums?page=0&pageSize=20&sort=year&sortOrder=desc"
-            req = urllib.request.Request(albums_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                albums_data = json.loads(response.read().decode())
+            
+            albums_url = f"https://music.yandex.ru/api/v2.1/artists/{artist_id}/albums?page=0&pageSize=20"
+            albums_data = self._fetch(albums_url)
             
             albums = []
-            if 'albums' in albums_data:
+            if albums_data and 'albums' in albums_data:
                 for a in albums_data['albums'][:15]:
                     albums.append({
-                        'title': a.get('title'),
+                        'title': a.get('title', 'Без названия'),
                         'year': a.get('year'),
                         'track_count': a.get('trackCount', 0)
                     })
             
             return {
                 'success': True,
-                'name': artist.get('name'),
-                'genres': artist.get('genres', [])[:3],
+                'name': artist.get('name', 'Неизвестно'),
+                'genres': artist.get('genres', [])[:5],
                 'listeners': artist.get('listeners', 0),
                 'albums': albums,
                 'years_active': artist.get('years', ''),
-                'bio_short': artist.get('description', {}).get('short', 'Нет краткой биографии')
+                'bio_short': artist.get('description', {}).get('short', 'Нет биографии')
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-search = YandexMusicSearch()
+music = YandexMusic()
                 `;
                 
                 pyodide.runPython(pythonCode);
@@ -250,27 +278,21 @@ search = YandexMusicSearch()
                 loadingDiv.classList.add('hidden');
                 appDiv.classList.remove('hidden');
                 
-                // Показываем приветствие с данными пользователя
                 const user = tg.initDataUnsafe?.user;
-                if (user) {
-                    const welcomeCard = document.createElement('div');
-                    welcomeCard.className = 'card';
-                    welcomeCard.innerHTML = `
-                        <h3>👋 Привет, ${user.first_name || 'гость'}!</h3>
-                        <p>Введи имя исполнителя и я покажу альбомы и биографию</p>
-                        <p style="font-size: 12px; margin-top: 8px;">🆔 Ваш ID: ${user.id || '?'}</p>
-                    `;
-                    const searchView = document.getElementById('searchView');
-                    searchView.insertBefore(welcomeCard, searchView.firstChild);
-                }
+                const welcomeCard = document.getElementById('welcomeCard');
+                welcomeCard.innerHTML = `
+                    <h3>❗ Привет, ${user?.first_name || 'гость'}!</h3>
+                    <p>Введи имя исполнителя — покажу альбомы и биографию</p>
+                    <p style="font-size: 12px; margin-top: 8px;">🆔 Ваш ID: ${user?.id || '?'}</p>
+                `;
                 
             } catch (err) {
-                console.error('Ошибка загрузки Pyodide:', err);
+                console.error(err);
                 loadingDiv.innerHTML = '<p class="error">❌ Ошибка загрузки Python</p>';
             }
         }
         
-        async function searchArtistPython() {
+        async function searchArtist() {
             const query = document.getElementById('artistInput').value.trim();
             if (!query) {
                 tg.showAlert('Введите имя исполнителя');
@@ -281,12 +303,20 @@ search = YandexMusicSearch()
             resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>🔍 Ищем...</div>';
             
             try {
-                const searchFunc = pyodide.globals.get('search');
-                const result = searchFunc.search_artist(query);
+                const music = pyodide.globals.get('music');
+                const result = music.search_artist(query);
                 const data = result.toJs();
                 
                 if (data.success && data.artists && data.artists.length > 0) {
-                    displayArtists(data.artists);
+                    resultsDiv.innerHTML = data.artists.map(artist => `
+                        <div class="card artist-card" onclick="getArtistInfo(${artist.id})">
+                            <div class="artist-name">🎤 ${artist.name}</div>
+                            <div class="artist-info">
+                                <span>📀 Альбомов: ${artist.albums_count}</span>
+                                <span>👥 Слушателей: ${formatNumber(artist.listeners)}</span>
+                            </div>
+                        </div>
+                    `).join('');
                 } else {
                     resultsDiv.innerHTML = '<div class="card error">❌ Исполнитель не найден</div>';
                 }
@@ -296,31 +326,18 @@ search = YandexMusicSearch()
             }
         }
         
-        function displayArtists(artists) {
-            const resultsDiv = document.getElementById('searchResults');
-            resultsDiv.innerHTML = artists.map(artist => `
-                <div class="card artist-card" onclick="getArtistInfo(${artist.id})">
-                    <div class="artist-name">🎤 ${artist.name}</div>
-                    <div class="artist-info">
-                        <span>📀 Альбомов: ${artist.albums_count}</span>
-                        <span>👥 Слушателей: ${formatNumber(artist.listeners)}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
         async function getArtistInfo(artistId) {
             const artistView = document.getElementById('artistView');
             const searchView = document.getElementById('searchView');
             const artistContent = document.getElementById('artistContent');
             
-            artistContent.innerHTML = '<div class="loading"><div class="spinner"></div>📖 Загружаем информацию...</div>';
+            artistContent.innerHTML = '<div class="loading"><div class="spinner"></div>📖 Загружаем...</div>';
             searchView.classList.add('hidden');
             artistView.classList.remove('hidden');
             
             try {
-                const searchFunc = pyodide.globals.get('search');
-                const result = searchFunc.get_artist_info(artistId);
+                const music = pyodide.globals.get('music');
+                const result = music.get_artist_info(artistId);
                 const data = result.toJs();
                 
                 if (data.success) {
@@ -331,7 +348,7 @@ search = YandexMusicSearch()
                             albumsHtml += `
                                 <div class="album-item">
                                     <div class="album-title">${album.title}</div>
-                                    <div class="album-year">${album.year || 'Год неизвестен'} • ${album.track_count} треков</div>
+                                    <div class="album-year">${album.year || 'Год ?'} • ${album.track_count} треков</div>
                                 </div>
                             `;
                         });
@@ -341,14 +358,14 @@ search = YandexMusicSearch()
                     artistContent.innerHTML = `
                         <div class="card">
                             <div class="artist-name">🎤 ${data.name}</div>
-                            <div class="listener-count">👥 ${formatNumber(data.listeners)} слушателей в месяц</div>
+                            <div class="listener-count">👥 ${formatNumber(data.listeners)} слушателей</div>
                         </div>
                         <div class="card">
                             <h3>📊 Информация</h3>
                             <div class="info-grid">
                                 <div class="info-item">
                                     <div class="info-label">🎵 Жанры</div>
-                                    <div class="info-value">${data.genres.join(', ') || 'Не указаны'}</div>
+                                    <div class="info-value">${data.genres.join(', ') || '—'}</div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">🎭 Годы</div>
@@ -359,16 +376,16 @@ search = YandexMusicSearch()
                         ${albumsHtml}
                         <div class="card">
                             <h3>📖 Биография</h3>
-                            <div class="bio-text">${data.bio_short || 'Нет биографии'}</div>
+                            <div class="bio-text">${data.bio_short || 'Нет данных'}</div>
                         </div>
                         <button onclick="tg.openLink('https://music.yandex.ru/artist/${artistId}')">🎵 Открыть в Яндекс.Музыке</button>
                     `;
                 } else {
-                    artistContent.innerHTML = `<div class="card error">❌ ${data.error || 'Ошибка загрузки'}</div>`;
+                    artistContent.innerHTML = `<div class="card error">❌ ${data.error || 'Ошибка'}</div>`;
                 }
             } catch (err) {
                 console.error(err);
-                artistContent.innerHTML = '<div class="card error">⚠️ Ошибка загрузки данных</div>';
+                artistContent.innerHTML = '<div class="card error">⚠️ Ошибка загрузки</div>';
             }
         }
         
@@ -378,13 +395,12 @@ search = YandexMusicSearch()
         }
         
         function formatNumber(num) {
-            if (!num) return '?';
+            if (!num || num === 0) return '?';
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
             if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
             return num;
         }
         
-        // Запускаем инициализацию
         initPyodide();
     </script>
 </body>
