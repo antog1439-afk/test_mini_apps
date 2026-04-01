@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Музыкальный бот</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--tg-theme-bg-color, #f8f9fa);
+            color: var(--tg-theme-text-color, #000);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #ffffff);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        .user-info {
+            background: var(--tg-theme-bg-color, #f0f2f5);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        .user-info p {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        button {
+            background: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .status {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #6c757d);
+        }
+        .features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .feature {
+            background: var(--tg-theme-bg-color, #e9ecef);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🎵 Музыкальный бот</h1>
+            <p>Добро пожаловать в мини-приложение!</p>
+        </div>
+        <div class="card">
+            <h3>📊 Информация о вас</h3>
+            <div class="user-info" id="userInfo">
+                <p>👤 Загрузка...</p>
+            </div>
+        </div>
+        <div class="card">
+            <h3>✨ Что умеет бот:</h3>
+            <div class="features">
+                <span class="feature">🔍 Поиск треков</span>
+                <span class="feature">📖 Биография</span>
+                <span class="feature">📀 Альбомы</span>
+                <span class="feature">🎸 Концерты</span>
+                <span class="feature">🎵 Популярные треки</span>
+            </div>
+        </div>
+        <div class="card">
+            <button onclick="sendHello()">👋 Привет боту</button>
+            <button onclick="closeApp()">❌ Закрыть</button>
+        </div>
+        <div class="status" id="status"></div>
+    </div>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            document.getElementById('userInfo').innerHTML = `
+                <p><strong>👤 Имя:</strong> ${user.first_name || 'Не указано'} ${user.last_name || ''}</p>
+                <p><strong>🆔 ID:</strong> ${user.id || 'Неизвестно'}</p>
+                <p><strong>🌍 Язык:</strong> ${user.language_code || 'ru'}</p>
+                <p><strong>👥 Username:</strong> ${user.username ? '@' + user.username : 'Не указан'}</p>
+            `;
+        } else {
+            document.getElementById('userInfo').innerHTML = '<p>👤 Данные пользователя недоступны</p>';
+        }
+        function sendHello() {
+            const data = { action: 'hello', user_id: user?.id, username: user?.first_name, timestamp: Date.now() };
+            tg.sendData(JSON.stringify(data));
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '✅ Привет отправлен боту!';
+            statusDiv.style.color = '#28a745';
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+        }
+        function closeApp() { tg.close(); }
+        tg.MainButton.setText('Открыть бота');
+        tg.MainButton.onClick(() => { tg.openTelegramLink('https://t.me/lnmizic_bot'); });
+        tg.MainButton.show();
+    </script>
+</body>
+</html>
