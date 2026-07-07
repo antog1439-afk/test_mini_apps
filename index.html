@@ -1,197 +1,442 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Музыкальный бот</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Погода</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: var(--tg-theme-bg-color, #f8f9fa);
-            color: var(--tg-theme-text-color, #000);
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .card {
-            background: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .artist-name {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-        .info-row {
             display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
-        .info-label {
-            color: var(--tg-theme-hint-color, #6c757d);
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 30px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         }
-        .info-value {
-            font-weight: 500;
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
         }
-        .album-item {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--tg-theme-hint-color, #e9ecef);
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
         }
-        .album-title {
-            font-weight: 600;
+
+        .search-box input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
             font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
         }
-        .album-year {
+
+        .search-box input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .search-box button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            white-space: nowrap;
+        }
+
+        .search-box button:hover {
+            transform: scale(1.05);
+        }
+
+        .search-box button:active {
+            transform: scale(0.95);
+        }
+
+        .geo-btn {
+            width: 100%;
+            padding: 15px;
+            background: #f0f0f0;
+            border: 2px dashed #999;
+            border-radius: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            color: #555;
+        }
+
+        .geo-btn:hover {
+            background: #e8e8e8;
+            border-color: #667eea;
+        }
+
+        .weather-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 20px;
+            padding: 25px;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .weather-card.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .weather-city {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .weather-temp {
+            font-size: 64px;
+            font-weight: 700;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .weather-temp span {
+            font-size: 32px;
+            color: #666;
+        }
+
+        .weather-desc {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .weather-detail {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .weather-detail .label {
             font-size: 12px;
-            color: var(--tg-theme-hint-color, #6c757d);
+            color: #777;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .weather-detail .value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
             margin-top: 4px;
         }
-        button {
-            background: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 12px;
-        }
-        .bio-text {
-            line-height: 1.5;
-            margin-top: 12px;
-        }
-        .genres {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .genre-tag {
-            background: var(--tg-theme-bg-color, #e9ecef);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-        }
-        .back-link {
+
+        .loader {
+            display: none;
             text-align: center;
-            margin-top: 16px;
+            padding: 40px 0;
         }
-        .back-link a {
-            color: var(--tg-theme-button-color, #2481cc);
-            text-decoration: none;
+
+        .loader.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            margin-bottom: 15px;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .icon {
+            font-size: 64px;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .weather-temp {
+                font-size: 48px;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-box button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card" id="content">
-            <div style="text-align: center; padding: 40px;">
-                <div style="font-size: 48px; margin-bottom: 16px;">🎵</div>
-                <h2>Музыкальный бот</h2>
-                <p style="margin-top: 12px; color: var(--tg-theme-hint-color, #6c757d);">
-                    Напишите трек в боте, затем нажмите<br>
-                    <strong>"Открыть в Mini App"</strong>
-                </p>
-                <button onclick="openBot()">🔍 Найти исполнителя</button>
+        <h1>🌤️ Погода</h1>
+        
+        <div class="search-box">
+            <input type="text" id="cityInput" placeholder="Введите город..." />
+            <button onclick="getWeather()">Найти</button>
+        </div>
+        
+        <button class="geo-btn" onclick="getGeoWeather()">📍 Моя геолокация</button>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: #666;">Загрузка...</p>
+        </div>
+        
+        <div class="weather-card" id="weatherCard">
+            <div class="icon" id="weatherIcon">🌤️</div>
+            <div class="weather-city" id="cityName">Москва</div>
+            <div class="weather-temp" id="temperature">25<span>°C</span></div>
+            <div class="weather-desc" id="description">Ясно</div>
+            <div class="weather-details">
+                <div class="weather-detail">
+                    <div class="label">💨 Ветер</div>
+                    <div class="value" id="wind">5 м/с</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="label">💧 Влажность</div>
+                    <div class="value" id="humidity">60%</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="label">📊 Давление</div>
+                    <div class="value" id="pressure">750 мм</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="label">🌡️ Ощущается</div>
+                    <div class="value" id="feelsLike">24°C</div>
+                </div>
             </div>
         </div>
+        
+        <div class="footer">Данные с Gismeteo • Обновлено: <span id="updateTime"></span></div>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        
-        // Получаем данные из URL (если есть)
-        const urlParams = new URLSearchParams(window.location.search);
-        const dataParam = urlParams.get('data');
-        
-        if (dataParam) {
+        // Функция получения погоды через Telegram WebApp
+        function getWeather() {
+            const city = document.getElementById('cityInput').value.trim();
+            if (!city) {
+                showError('Введите название города');
+                return;
+            }
+            
+            showLoader(true);
+            hideError();
+            
+            // Отправляем запрос в Telegram
+            if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.sendData(JSON.stringify({
+                    action: 'weather',
+                    city: city
+                }));
+            } else {
+                // Если не в Telegram, используем демо-данные
+                setTimeout(() => {
+                    showDemoWeather(city);
+                }, 1000);
+            }
+        }
+
+        // Функция получения погоды по геолокации
+        function getGeoWeather() {
+            if (!navigator.geolocation) {
+                showError('Геолокация не поддерживается');
+                return;
+            }
+            
+            showLoader(true);
+            hideError();
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const { latitude, longitude } = position.coords;
+                    
+                    if (window.Telegram && Telegram.WebApp) {
+                        Telegram.WebApp.sendData(JSON.stringify({
+                            action: 'geo',
+                            lat: latitude,
+                            lon: longitude
+                        }));
+                    } else {
+                        // Демо-данные
+                        setTimeout(() => {
+                            showDemoWeather('Ваш город');
+                        }, 1000);
+                    }
+                },
+                function(error) {
+                    showError('Не удалось определить геолокацию');
+                    showLoader(false);
+                }
+            );
+        }
+
+        // Показать демо-данные (для теста вне Telegram)
+        function showDemoWeather(city) {
+            const weatherData = {
+                city: city,
+                temp: '25',
+                feelsLike: '24',
+                description: 'Ясно, небольшой ветер',
+                wind: '5 м/с',
+                humidity: '60%',
+                pressure: '750 мм рт. ст.',
+                icon: '☀️'
+            };
+            displayWeather(weatherData);
+            showLoader(false);
+        }
+
+        // Отображение погоды
+        function displayWeather(data) {
+            document.getElementById('cityName').textContent = data.city;
+            document.getElementById('temperature').innerHTML = data.temp + '<span>°C</span>';
+            document.getElementById('description').textContent = data.description;
+            document.getElementById('wind').textContent = data.wind;
+            document.getElementById('humidity').textContent = data.humidity;
+            document.getElementById('pressure').textContent = data.pressure;
+            document.getElementById('feelsLike').textContent = data.feelsLike + '°C';
+            document.getElementById('weatherIcon').textContent = data.icon || '🌤️';
+            document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
+            
+            document.getElementById('weatherCard').classList.add('active');
+            showLoader(false);
+        }
+
+        // Показать ошибку
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = '❌ ' + message;
+            errorEl.classList.add('active');
+            showLoader(false);
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('active');
+        }
+
+        // Показать/скрыть загрузчик
+        function showLoader(show) {
+            document.getElementById('loader').classList.toggle('active', show);
+            if (show) {
+                document.getElementById('weatherCard').classList.remove('active');
+            }
+        }
+
+        // Обработка данных от Telegram
+        window.addEventListener('message', function(event) {
             try {
-                const artist = JSON.parse(decodeURIComponent(dataParam));
-                showArtistData(artist);
-            } catch(e) {
-                console.error('Ошибка:', e);
+                const data = JSON.parse(event.data);
+                if (data.action === 'weather_data') {
+                    displayWeather(data.weather);
+                } else if (data.action === 'error') {
+                    showError(data.message);
+                }
+            } catch (e) {
+                console.log('Получены данные:', event.data);
             }
-        } else {
-            // Показываем приветствие с данными пользователя
-            const user = tg.initDataUnsafe?.user;
-            if (user) {
-                document.getElementById('content').innerHTML = `
-                    <div style="text-align: center;">
-                        <h2>👋 Привет, ${user.first_name}!</h2>
-                        <p style="margin-top: 12px;">Найди исполнителя в боте,<br>чтобы увидеть альбомы здесь</p>
-                        <button onclick="openBot()">🔍 Найти исполнителя</button>
-                    </div>
-                `;
-            }
-        }
-        
-        function showArtistData(artist) {
-            const genresHtml = artist.genres && artist.genres.length > 0 
-                ? `<div class="genres">${artist.genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`
-                : '<span>—</span>';
+        });
+
+        // Инициализация Telegram WebApp
+        if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
             
-            let albumsHtml = '';
-            if (artist.albums && artist.albums.length > 0) {
-                albumsHtml = '<div class="card"><h3>📀 Альбомы</h3>';
-                artist.albums.forEach(album => {
-                    albumsHtml += `
-                        <div class="album-item">
-                            <div class="album-title">${album.title}</div>
-                            <div class="album-year">${album.year || 'Год неизвестен'} • ${album.track_count || '?'} треков</div>
-                        </div>
-                    `;
-                });
-                albumsHtml += '</div>';
+            // Автоматически запросить геолокацию при открытии
+            setTimeout(() => {
+                getGeoWeather();
+            }, 500);
+        }
+
+        // Обработка Enter
+        document.getElementById('cityInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getWeather();
             }
-            
-            document.getElementById('content').innerHTML = `
-                <div class="card">
-                    <div class="artist-name">🎤 ${artist.name}</div>
-                    <div class="info-row">
-                        <span class="info-label">👥 Слушателей</span>
-                        <span class="info-value">${artist.listeners || '—'}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">🎵 Жанры</span>
-                        <div class="info-value">${genresHtml}</div>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">💿 Альбомов</span>
-                        <span class="info-value">${artist.albums_count || artist.albums?.length || '—'}</span>
-                    </div>
-                </div>
-                ${albumsHtml}
-                <div class="card">
-                    <h3>📖 Биография</h3>
-                    <div class="bio-text">${artist.bio_short || 'Нет биографии'}</div>
-                </div>
-                <button onclick="tg.openLink('${artist.yandex_link || 'https://music.yandex.ru'}')">🎵 Открыть в Яндекс.Музыке</button>
-                <div class="back-link">
-                    <a href="#" onclick="openBot()">← Назад к поиску</a>
-                </div>
-            `;
-        }
-        
-        function openBot() {
-            tg.openTelegramLink('https://t.me/lnmizic_bot');
-        }
+        });
+
+        // Проверка нажатия кнопки "Найти"
+        console.log('Мини-приложение погоды загружено!');
     </script>
 </body>
 </html>
