@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Погода</title>
+    <title>Точная погода</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -25,10 +25,9 @@
             background: rgba(255, 255, 255, 0.95);
             border-radius: 30px;
             padding: 30px;
-            max-width: 420px;
+            max-width: 450px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
         h1 {
@@ -226,6 +225,31 @@
             font-size: 12px;
         }
 
+        .weather-extra {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .weather-extra-item {
+            text-align: center;
+        }
+
+        .weather-extra-item .label {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .weather-extra-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 3px;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
@@ -247,7 +271,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌤️ Погода</h1>
+        <h1>🌤️ Точная погода</h1>
         
         <div class="search-box">
             <input type="text" id="cityInput" placeholder="Введите город..." />
@@ -260,7 +284,7 @@
         
         <div class="loader" id="loader">
             <div class="spinner"></div>
-            <p style="margin-top: 15px; color: #666;">Загрузка...</p>
+            <p style="margin-top: 15px; color: #666;">Загрузка данных...</p>
         </div>
         
         <div class="weather-card" id="weatherCard">
@@ -286,14 +310,28 @@
                     <div class="value" id="feelsLike">24°C</div>
                 </div>
             </div>
+            <div class="weather-extra">
+                <div class="weather-extra-item">
+                    <div class="label">🌅 Восход</div>
+                    <div class="value" id="sunrise">--:--</div>
+                </div>
+                <div class="weather-extra-item">
+                    <div class="label">🌇 Закат</div>
+                    <div class="value" id="sunset">--:--</div>
+                </div>
+                <div class="weather-extra-item">
+                    <div class="label">☀️ УФ-индекс</div>
+                    <div class="value" id="uvIndex">--</div>
+                </div>
+            </div>
         </div>
         
-        <div class="footer">Данные с Gismeteo • Обновлено: <span id="updateTime"></span></div>
+        <div class="footer">Данные: wttr.in • Обновлено: <span id="updateTime"></span></div>
     </div>
 
     <script>
-        // Функция получения погоды через Telegram WebApp
-        function getWeather() {
+        // Функция получения точной погоды с wttr.in
+        async function getWeather() {
             const city = document.getElementById('cityInput').value.trim();
             if (!city) {
                 showError('Введите название города');
@@ -303,17 +341,26 @@
             showLoader(true);
             hideError();
             
-            // Отправляем запрос в Telegram
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.sendData(JSON.stringify({
-                    action: 'weather',
-                    city: city
-                }));
-            } else {
-                // Если не в Telegram, используем демо-данные
-                setTimeout(() => {
-                    showDemoWeather(city);
-                }, 1000);
+            try {
+                // Запрос к wttr.in (бесплатный API без ключа)
+                const url = `https://wttr.in/${encodeURIComponent(city)}?format=j1&lang=ru`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('Город не найден');
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error('Город не найден');
+                }
+                
+                displayWeather(data);
+                showLoader(false);
+            } catch (error) {
+                showError(error.message || 'Ошибка получения данных');
+                showLoader(false);
             }
         }
 
@@ -328,20 +375,23 @@
             hideError();
             
             navigator.geolocation.getCurrentPosition(
-                function(position) {
+                async function(position) {
                     const { latitude, longitude } = position.coords;
                     
-                    if (window.Telegram && Telegram.WebApp) {
-                        Telegram.WebApp.sendData(JSON.stringify({
-                            action: 'geo',
-                            lat: latitude,
-                            lon: longitude
-                        }));
-                    } else {
-                        // Демо-данные
-                        setTimeout(() => {
-                            showDemoWeather('Ваш город');
-                        }, 1000);
+                    try {
+                        const url = `https://wttr.in/${latitude},${longitude}?format=j1&lang=ru`;
+                        const response = await fetch(url);
+                        
+                        if (!response.ok) {
+                            throw new Error('Не удалось получить данные');
+                        }
+                        
+                        const data = await response.json();
+                        displayWeather(data);
+                        showLoader(false);
+                    } catch (error) {
+                        showError('Ошибка получения данных по геолокации');
+                        showLoader(false);
                     }
                 },
                 function(error) {
@@ -351,36 +401,119 @@
             );
         }
 
-        // Показать демо-данные (для теста вне Telegram)
-        function showDemoWeather(city) {
-            const weatherData = {
-                city: city,
-                temp: '25',
-                feelsLike: '24',
-                description: 'Ясно, небольшой ветер',
-                wind: '5 м/с',
-                humidity: '60%',
-                pressure: '750 мм рт. ст.',
-                icon: '☀️'
-            };
-            displayWeather(weatherData);
-            showLoader(false);
-        }
-
         // Отображение погоды
         function displayWeather(data) {
-            document.getElementById('cityName').textContent = data.city;
-            document.getElementById('temperature').innerHTML = data.temp + '<span>°C</span>';
-            document.getElementById('description').textContent = data.description;
-            document.getElementById('wind').textContent = data.wind;
-            document.getElementById('humidity').textContent = data.humidity;
-            document.getElementById('pressure').textContent = data.pressure;
-            document.getElementById('feelsLike').textContent = data.feelsLike + '°C';
-            document.getElementById('weatherIcon').textContent = data.icon || '🌤️';
-            document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
-            
-            document.getElementById('weatherCard').classList.add('active');
-            showLoader(false);
+            try {
+                const current = data.current_condition[0];
+                const location = data.nearest_area[0];
+                const weather = data.weather[0];
+                
+                // Город
+                const cityName = location.areaName[0].value || 'Неизвестно';
+                document.getElementById('cityName').textContent = cityName;
+                
+                // Температура
+                const temp = current.temp_C || '--';
+                document.getElementById('temperature').innerHTML = temp + '<span>°C</span>';
+                
+                // Ощущается как
+                const feelsLike = current.FeelsLikeC || temp;
+                document.getElementById('feelsLike').textContent = feelsLike + '°C';
+                
+                // Описание
+                const desc = current.weatherDesc[0].value || '---';
+                document.getElementById('description').textContent = desc;
+                
+                // Ветер
+                const windSpeed = current.windSpeedKmph || '0';
+                document.getElementById('wind').textContent = windSpeed + ' км/ч';
+                
+                // Влажность
+                const humidity = current.humidity || '0';
+                document.getElementById('humidity').textContent = humidity + '%';
+                
+                // Давление
+                const pressure = current.pressure || '0';
+                document.getElementById('pressure').textContent = pressure + ' мм';
+                
+                // Иконка погоды
+                const weatherCode = current.weatherCode || '113';
+                document.getElementById('weatherIcon').textContent = getWeatherIcon(weatherCode);
+                
+                // Восход и закат
+                if (weather.astronomy && weather.astronomy.length > 0) {
+                    document.getElementById('sunrise').textContent = weather.astronomy[0].sunrise || '--:--';
+                    document.getElementById('sunset').textContent = weather.astronomy[0].sunset || '--:--';
+                }
+                
+                // UV-индекс
+                const uvIndex = current.uvIndex || '--';
+                document.getElementById('uvIndex').textContent = uvIndex;
+                
+                // Время обновления
+                document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
+                
+                // Показываем карточку
+                document.getElementById('weatherCard').classList.add('active');
+                
+            } catch (error) {
+                showError('Ошибка обработки данных');
+            }
+        }
+
+        // Функция получения иконки погоды по коду
+        function getWeatherIcon(code) {
+            const icons = {
+                '113': '☀️', // Ясно
+                '116': '⛅', // Переменная облачность
+                '119': '☁️', // Облачно
+                '122': '☁️', // Пасмурно
+                '143': '🌫️', // Туман
+                '176': '🌦️', // Легкий дождь
+                '179': '🌨️', // Легкий снег
+                '182': '🌧️', // Снег с дождем
+                '185': '🌧️', // Снег с дождем
+                '200': '⛈️', // Гроза
+                '227': '🌨️', // Снегопад
+                '230': '❄️', // Сильный снегопад
+                '248': '🌫️', // Туман
+                '260': '🌫️', // Туман
+                '263': '🌦️', // Легкий дождь
+                '266': '🌧️', // Легкий дождь
+                '281': '🌧️', // Дождь
+                '284': '🌧️', // Сильный дождь
+                '293': '🌦️', // Легкий дождь
+                '296': '🌧️', // Дождь
+                '299': '🌧️', // Сильный дождь
+                '302': '🌧️', // Сильный дождь
+                '305': '🌧️', // Сильный дождь
+                '308': '🌧️', // Проливной дождь
+                '311': '🌧️', // Дождь
+                '314': '🌧️', // Дождь
+                '317': '🌧️', // Дождь
+                '320': '🌨️', // Снег
+                '323': '🌨️', // Снег
+                '326': '🌨️', // Снег
+                '329': '🌨️', // Снег
+                '332': '❄️', // Сильный снег
+                '335': '❄️', // Сильный снег
+                '338': '❄️', // Сильный снег
+                '350': '🌨️', // Снег
+                '353': '🌦️', // Легкий дождь
+                '356': '🌧️', // Дождь
+                '359': '🌧️', // Дождь
+                '362': '🌧️', // Дождь
+                '365': '🌧️', // Дождь
+                '368': '🌨️', // Снег
+                '371': '❄️', // Сильный снег
+                '374': '🌧️', // Дождь
+                '377': '🌧️', // Дождь
+                '386': '⛈️', // Гроза
+                '389': '⛈️', // Сильная гроза
+                '392': '⛈️', // Гроза со снегом
+                '395': '❄️', // Сильный снег
+            };
+            return icons[code] || '🌤️';
         }
 
         // Показать ошибку
@@ -403,31 +536,6 @@
             }
         }
 
-        // Обработка данных от Telegram
-        window.addEventListener('message', function(event) {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.action === 'weather_data') {
-                    displayWeather(data.weather);
-                } else if (data.action === 'error') {
-                    showError(data.message);
-                }
-            } catch (e) {
-                console.log('Получены данные:', event.data);
-            }
-        });
-
-        // Инициализация Telegram WebApp
-        if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
-            
-            // Автоматически запросить геолокацию при открытии
-            setTimeout(() => {
-                getGeoWeather();
-            }, 500);
-        }
-
         // Обработка Enter
         document.getElementById('cityInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -435,8 +543,16 @@
             }
         });
 
-        // Проверка нажатия кнопки "Найти"
-        console.log('Мини-приложение погоды загружено!');
+        // Загружаем погоду по умолчанию
+        document.addEventListener('DOMContentLoaded', function() {
+            // Показываем погоду в Москве при загрузке
+            setTimeout(() => {
+                document.getElementById('cityInput').value = 'Москва';
+                getWeather();
+            }, 300);
+        });
+
+        console.log('🌤️ Точная погода загружена!');
     </script>
 </body>
 </html>
